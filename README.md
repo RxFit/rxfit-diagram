@@ -1,73 +1,19 @@
-# React + TypeScript + Vite
+# The Headless Enterprise: RxFit Operational Automation
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This repository contains an interactive React Flow application that visually maps out the entire infrastructure, data flow, automations, and human interfaces of the **RxFit Headless Enterprise**.
 
-Currently, two official plugins are available:
+## Context for AI Agents & Developers
+If you are an AI reading this repository, this block diagram acts as the architectural source of truth for RxFit's organizational and structural systems. It maps out:
+- **Source of Truth Databases:** Google Drive (Sheets/Docs) and GitHub.
+- **Client & Admin Interfaces:** RxFit Command Center (Concierge) and Oscar CRM.
+- **Communications Layer:** Twilio (for remote execution via Danny's phone and client alerts) and Google Chat (for internal operations).
+- **Billing Tri-Pillar Flow:** The relationship between Stripe, Google Calendar, and the Command Center.
+- **Agentic Layer:** The roles of RxFit-MCP (JADE v3), Antigravity, and the Morning/EOD Wrap-ups that process infinite context and assign expedient tasks.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This interactive diagram is a local React application built with Vite, TypeScript, and React Flow.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Installation & Running Locally
+```bash
+npm install
+npm run dev
 ```

@@ -1,7 +1,8 @@
 {
-  "name": "rxfit-diagram",
+  "name": "the-headless-enterprise-rxfit-operational-automation",
+  "description": "The Headless Enterprise: RxFit Operational Automation",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

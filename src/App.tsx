@@ -183,7 +183,7 @@ export default function App() {
       <div className="app-header">
         <div className="app-title">
           <div className="pulse-dot"></div>
-          RxFit Headless Enterprise
+          The Headless Enterprise: RxFit Operational Automation
         </div>
       </div>
       <div style={{ width: '100vw', height: '100vh' }}>
