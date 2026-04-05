@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  # ─── RxFit Command Center (Static Vite build served by Nginx) ───
+  command-center:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rxfit-command-center
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    labels:
+      - "com.rxfit.service=command-center"
+      - "com.rxfit.version=2.0"
+
+  # ─── Cloudflare Tunnel (exposes command-center externally) ───
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: rxfit-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      command-center:
+        condition: service_healthy
+    labels:
+      - "com.rxfit.service=tunnel"
