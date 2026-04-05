@@ -1,17 +1,68 @@
-import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import * as Icons from 'lucide-react';
+import {
+  HardDrive,
+  Github,
+  CalendarDays,
+  Users,
+  Briefcase,
+  Dumbbell,
+  MessageSquareShare,
+  MessageCircle,
+  Smartphone,
+  Laptop,
+  Globe,
+  MessageCirclePlus,
+  Bot,
+  Workflow,
+  Sparkles,
+  CreditCard,
+  RefreshCw,
+  CircleDollarSign,
+  Layout,
+  Search,
+  FileText,
+  Database,
+  Box,
+} from 'lucide-react';
+import type { ElementType } from 'react';
+import type { RxNodeData, SystemStatus } from './types';
+import { statusColors } from './types';
 
-export default function CustomNode({ data }: { data: any }) {
-  // Dynamically get the icon component from lucide-react based on data.icon string
-  // Fallback to Box if not found
-  const IconComponent = Icons[data.icon as keyof typeof Icons] as React.ElementType || Icons.Box;
+const iconMap: Record<string, ElementType> = {
+  HardDrive, Github, CalendarDays, Users, Briefcase, Dumbbell,
+  MessageSquareShare, MessageCircle, Smartphone, Laptop, Globe,
+  MessageCirclePlus, Bot, Workflow, Sparkles, CreditCard,
+  RefreshCw, CircleDollarSign, Layout, Search, FileText, Database, Box,
+};
+
+export default function CustomNode({ data }: { data: RxNodeData }) {
+  const IconComponent = (data.icon ? iconMap[data.icon] : null) || Box;
+  const isGroup = data.variant === 'group';
+  const status = data.status || 'unknown';
+  const tasks = data.tasks || [];
+  const pendingCount = tasks.filter((t) => t.status !== 'done').length;
 
   return (
-    <div className={`rx-node ${data.variant || 'core'}`}>
+    <div className={`rx-node ${data.variant || 'core'}`} style={{ cursor: isGroup ? 'default' : 'pointer' }}>
       <Handle type="target" position={Position.Top} id="top" style={{ background: 'transparent', border: 'none' }} />
       <Handle type="target" position={Position.Left} id="left" style={{ background: 'transparent', border: 'none' }} />
-      
+
+      {/* Status indicator dot */}
+      {!isGroup && (
+        <div
+          className="rx-node-status"
+          style={{ background: statusColors[status as SystemStatus] }}
+          title={`Status: ${status}`}
+        />
+      )}
+
+      {/* Task count badge */}
+      {!isGroup && pendingCount > 0 && (
+        <div className="rx-node-badge" title={`${pendingCount} pending task${pendingCount > 1 ? 's' : ''}`}>
+          {pendingCount}
+        </div>
+      )}
+
       <div className="rx-node-header">
         <div className="rx-node-icon">
           <IconComponent size={20} strokeWidth={1.5} />
@@ -20,12 +71,12 @@ export default function CustomNode({ data }: { data: any }) {
           {data.label}
         </div>
       </div>
-      
-      {data.description && (
+
+      {data.description ? (
         <div className="rx-node-desc">
           {data.description}
         </div>
-      )}
+      ) : null}
 
       {/* TARGET HANDLES */}
       <Handle type="target" position={Position.Top} id="t-top" style={{ opacity: 0 }} />
