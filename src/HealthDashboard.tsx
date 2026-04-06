@@ -13,11 +13,13 @@ import {
 import type { Node } from '@xyflow/react';
 import type { RxNodeData, TaskItem } from './types';
 import { variantColors, statusColors } from './types';
+import type { HealthFeed } from './hooks/useOrchestratorHealth';
 
 interface HealthDashboardProps {
   nodes: Node<RxNodeData>[];
   getNodeTasks: (nodeId: string) => TaskItem[];
   getAggregateStats: () => ReturnType<typeof computeStats>;
+  healthData?: HealthFeed | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -46,6 +48,7 @@ export default function HealthDashboard({
   nodes,
   getNodeTasks,
   getAggregateStats,
+  healthData,
   isOpen,
   onClose,
 }: HealthDashboardProps) {
@@ -53,12 +56,19 @@ export default function HealthDashboard({
 
   // Find nodes with degraded/down status
   const problemNodes = useMemo(() => {
+    if (healthData) {
+      return healthData.nodes.filter(n => n.status !== 'healthy');
+    }
     return nodes.filter(
       (n) =>
         n.data.variant !== 'group' &&
         (n.data.status === 'degraded' || n.data.status === 'down')
-    );
-  }, [nodes]);
+    ).map(n => ({
+      id: n.id,
+      name: n.data.label,
+      status: n.data.status || 'unknown'
+    }));
+  }, [nodes, healthData]);
 
   // Find critical tasks
   const criticalTasks = useMemo(() => {
@@ -81,9 +91,22 @@ export default function HealthDashboard({
     ? Math.round((stats.tasks.done / stats.tasks.total) * 100)
     : 0;
 
-  const systemHealthPct = stats.systems.total > 0
-    ? Math.round((stats.systems.operational / stats.systems.total) * 100)
-    : 0;
+  let systemHealthPct = 0;
+  let sysOp = stats.systems.operational;
+  let sysDeg = stats.systems.degraded;
+  let sysDown = stats.systems.down;
+  
+  if (healthData) {
+    const alive = healthData.healthyCount;
+    systemHealthPct = healthData.totalNodes > 0 ? Math.round((alive / healthData.totalNodes) * 100) : 0;
+    sysOp = healthData.healthyCount;
+    sysDeg = healthData.degradedCount;
+    sysDown = healthData.offlineCount;
+  } else {
+    systemHealthPct = stats.systems.total > 0
+      ? Math.round((stats.systems.operational / stats.systems.total) * 100)
+      : 0;
+  }
 
   return (
     <div className="health-overlay" onClick={(e) => {
@@ -125,10 +148,10 @@ export default function HealthDashboard({
               />
             </div>
             <div className="health-card-breakdown">
-              <span style={{ color: statusColors.operational }}>● {stats.systems.operational} operational</span>
-              <span style={{ color: statusColors.degraded }}>● {stats.systems.degraded} degraded</span>
-              <span style={{ color: statusColors.down }}>● {stats.systems.down} down</span>
-              <span style={{ color: statusColors.unknown }}>● {stats.systems.unknown} unknown</span>
+              <span style={{ color: statusColors.operational }}>● {sysOp} operational</span>
+              <span style={{ color: statusColors.degraded }}>● {sysDeg} degraded</span>
+              <span style={{ color: statusColors.down }}>● {sysDown} down</span>
+              {!healthData && <span style={{ color: statusColors.unknown }}>● {stats.systems.unknown} unknown</span>}
             </div>
           </div>
 
@@ -188,18 +211,18 @@ export default function HealthDashboard({
               <span>Systems Requiring Attention ({problemNodes.length})</span>
             </div>
             <div className="health-problem-list">
-              {problemNodes.map((node) => (
-                <div key={node.id} className="health-problem-item">
+              {problemNodes.map((pn) => (
+                <div key={pn.id} className="health-problem-item">
                   <div
                     className="health-problem-dot"
-                    style={{ background: statusColors[node.data.status || 'unknown'] }}
+                    style={{ background: statusColors[pn.status === 'healthy' ? 'operational' : pn.status === 'offline' ? 'down' : 'degraded'] || statusColors.unknown }}
                   />
-                  <span className="health-problem-label">{node.data.label}</span>
+                  <span className="health-problem-label">{pn.name}</span>
                   <span
                     className="health-problem-status"
-                    style={{ color: statusColors[node.data.status || 'unknown'] }}
+                    style={{ color: statusColors[pn.status === 'healthy' ? 'operational' : pn.status === 'offline' ? 'down' : 'degraded'] || statusColors.unknown }}
                   >
-                    {node.data.status}
+                    {pn.status}
                   </span>
                 </div>
               ))}
