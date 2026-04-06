@@ -49,12 +49,12 @@ export interface ColumnMapping {
 
 /** Default column mapping — handles common header variations */
 export const DEFAULT_COLUMN_MAP: ColumnMapping = {
-  title: 'Title',
+  title: 'Task',
   status: 'Status',
   priority: 'Priority',
-  assignee: 'Assignee',
-  system: 'System',
-  dueDate: 'Due Date',
+  assignee: 'Owner',
+  system: 'Category/LOE/Department',
+  dueDate: 'Deadline',
 };
 
 /**
@@ -62,12 +62,12 @@ export const DEFAULT_COLUMN_MAP: ColumnMapping = {
  * Used when exact column names don't match the default map.
  */
 export const HEADER_ALIASES: Record<keyof ColumnMapping, string[]> = {
-  title: ['title', 'task', 'task title', 'task name', 'name', 'description', 'item'],
+  title: ['task', 'title', 'task title', 'task name', 'name', 'item'],
   status: ['status', 'state', 'progress', 'done', 'complete', 'completed'],
   priority: ['priority', 'prio', 'p', 'urgency', 'importance', 'level'],
-  assignee: ['assignee', 'assigned to', 'owner', 'responsible', 'who', 'person', 'agent'],
-  system: ['system', 'node', 'component', 'area', 'module', 'category', 'group', 'team'],
-  dueDate: ['due date', 'due', 'deadline', 'target date', 'date'],
+  assignee: ['owner', 'assignee', 'assigned to', 'responsible', 'who', 'person', 'agent'],
+  system: ['category/loe/department', 'category', 'system', 'node', 'component', 'area', 'module', 'group', 'team', 'department', 'loe'],
+  dueDate: ['deadline', 'due date', 'due', 'target date', 'date'],
 };
 
 /**
@@ -124,6 +124,20 @@ export const SYSTEM_TO_NODE_ID: Record<string, string> = {
   'exec team': 'exec',
   'trainers': 'trainers',
   'clients': 'clients',
+
+  // Sheet categories → node ID mapping
+  // (from the "CATEGORY/LOE/DEPARTMENT" column)
+  'operations': 'cc',
+  'sales': 'oscar',
+  'personal training': 'trainers',
+  'corporate wellness': 'virtual',
+  'marketing': 'website',
+  'technology': 'github',
+  'tech': 'github',
+  'finance': 'billing-engine',
+  'hr': 'exec',
+  'human resources': 'exec',
+  'content': 'seo',
 };
 
 // ─────────────────────────────────────────────────────────
@@ -135,8 +149,16 @@ export const dataSources: SheetDataSource[] = [
     id: 'master-tasks',
     name: 'Master Task Board',
     sheetId: '1MzjPNs8nt8FxmN9YUkWjNreEsT63MPs2qvfZD7fgnr0',
-    proxyUrl: '', // ← PASTE YOUR APPS SCRIPT URL HERE
-    sheetTab: 'Sheet1',
+    proxyUrl: 'https://script.google.com/macros/s/AKfycbwUV_o6Q8LVWsSnwLICQYdVkBDIyWa-vCDOVWMK7OMTh7MIzGSjKixA3hHu02WJVv6u/exec',
+    sheetTab: 'Layer 2: Task Management Tracker',
+    columnMap: {
+      title: 'TASK',
+      status: 'STATUS',
+      priority: 'PRIORITY',
+      assignee: 'OWNER',
+      system: 'CATEGORY/LOE/DEPARTMENT',
+      dueDate: 'DEADLINE',
+    },
     nodeMapping: 'auto',
     enabled: true,
     refreshIntervalMs: 5 * 60 * 1000, // 5 minutes
@@ -148,6 +170,11 @@ export const dataSources: SheetDataSource[] = [
 // ─────────────────────────────────────────────────────────
 
 export const APPS_SCRIPT_TEMPLATE = `
+// ═══════════════════════════════════════════════════════════
+// RxFit Command Center — Google Sheets Bridge
+// Deploy: New Deployment → Web App → Execute as: Me → Anyone
+// ═══════════════════════════════════════════════════════════
+
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetName = e && e.parameter && e.parameter.sheet ? e.parameter.sheet : null;
@@ -172,7 +199,11 @@ function doGet(e) {
     var row = data[i];
     // Skip completely empty rows
     if (row.every(function(cell) { return cell === '' || cell === null || cell === undefined; })) continue;
+    // Skip instruction/template rows (row 2 in Layer 2 is instructional)
+    var firstCell = String(row[0]).trim().toLowerCase();
+    if (firstCell.startsWith('every task') || firstCell.startsWith('example')) continue;
     var obj = {};
+    obj['_rowIndex'] = i + 1; // 1-indexed Sheet row for doPost write-back
     for (var j = 0; j < headers.length; j++) {
       obj[headers[j]] = row[j] !== undefined && row[j] !== null ? String(row[j]).trim() : '';
     }
@@ -188,5 +219,88 @@ function doGet(e) {
       lastUpdated: new Date().toISOString()
     }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════
+// doPost — Write-back from Command Center
+// Supports: addRow, updateCell, updateRow
+// ═══════════════════════════════════════════════════════════
+
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheetName = payload.sheet || null;
+    var sheet = sheetName ? ss.getSheetByName(sheetName) : ss.getSheets()[0];
+
+    if (!sheet) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ error: 'Sheet not found', success: false }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var action = payload.action;
+
+    if (action === 'addRow') {
+      // Add a new row at the bottom
+      var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      var newRow = headers.map(function(h) {
+        var key = String(h).trim();
+        return payload.data[key] || '';
+      });
+      sheet.appendRow(newRow);
+      return ContentService
+        .createTextOutput(JSON.stringify({ success: true, action: 'addRow', row: sheet.getLastRow() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'updateCell') {
+      // Update a specific cell: { row, col, value } or { row, header, value }
+      var row = payload.row;
+      var col = payload.col;
+      if (!col && payload.header) {
+        var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        for (var i = 0; i < headers.length; i++) {
+          if (String(headers[i]).trim().toUpperCase() === String(payload.header).trim().toUpperCase()) {
+            col = i + 1;
+            break;
+          }
+        }
+      }
+      if (row && col) {
+        sheet.getRange(row, col).setValue(payload.value);
+        return ContentService
+          .createTextOutput(JSON.stringify({ success: true, action: 'updateCell', row: row, col: col }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ error: 'Missing row/col', success: false }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'updateRow') {
+      // Update an entire row by row number: { row, data: { Header: value, ... } }
+      var row = payload.row;
+      var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      for (var i = 0; i < headers.length; i++) {
+        var key = String(headers[i]).trim();
+        if (payload.data.hasOwnProperty(key)) {
+          sheet.getRange(row, i + 1).setValue(payload.data[key]);
+        }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ success: true, action: 'updateRow', row: row }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: 'Unknown action: ' + action, success: false }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: err.toString(), success: false }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 `;

@@ -1,0 +1,9 @@
+tunnel: d41f8ac1-3863-44cf-8de7-8ce6220ba6b5
+credentials-file: C:\Users\danie\.cloudflared\d41f8ac1-3863-44cf-8de7-8ce6220ba6b5.json
+
+# Named tunnel for RxFit Operational Command Center
+# CNAME: ops.rxfit.ai → d41f8ac1-3863-44cf-8de7-8ce6220ba6b5.cfargotunnel.com
+ingress:
+  - hostname: ops.rxfit.ai
+    service: http://localhost:8090
+  - service: http_status:404

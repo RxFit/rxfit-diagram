@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -17,6 +17,7 @@ import DetailPanel from './DetailPanel';
 import SearchBar from './SearchBar';
 import HealthDashboard from './HealthDashboard';
 import SyncIndicator from './SyncIndicator';
+import PdfExportButton from './PdfExportButton';
 import { usePersistedPositions } from './hooks/usePersistedPositions';
 import { useTaskState } from './hooks/useTaskState';
 import { useGoogleSheetTasks } from './hooks/useGoogleSheetTasks';
@@ -32,6 +33,12 @@ const nodeTypes = {
 };
 
 export default function App() {
+  // Detect embed mode for iframe integration
+  const isEmbedMode = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('embed') === 'true';
+  }, []);
+
   const { nodes, onNodesChange, resetPositions } = usePersistedPositions<RxNodeData>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -107,40 +114,67 @@ export default function App() {
     [nodes]
   );
 
+  // Cross-app postMessage bridge (for Concierge iframe communication)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'object') return;
+      const { type, nodeId, query } = event.data;
+      if (type === 'selectNode' && nodeId) {
+        onNodeSelect(nodeId);
+        onFocusNode(nodeId);
+      } else if (type === 'search' && query) {
+        // Future: programmatic search trigger
+        console.log('[ops.rxfit.ai] Search requested:', query);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onNodeSelect, onFocusNode]);
+
   return (
     <>
-      <div className="app-header">
-        <div className="app-title">
-          <div className="pulse-dot" />
-          The Headless Enterprise: RxFit Operational Automation
+      {!isEmbedMode && (
+        <div className="app-header">
+          <div className="app-title">
+            <div className="pulse-dot" />
+            The Headless Enterprise: RxFit Operational Automation
+          </div>
+          <div className="app-header-actions">
+            <SearchBar
+              nodes={nodes}
+              getNodeTasks={getNodeTasks}
+              onNodeSelect={onNodeSelect}
+              onFocusNode={onFocusNode}
+            />
+            <SyncIndicator
+              status={syncStatus}
+              lastSync={syncLastSync}
+              taskCount={syncTaskCount}
+              error={syncError}
+              onRefresh={syncRefresh}
+            />
+            <PdfExportButton
+              nodes={initialNodes}
+              getNodeTasks={getNodeTasks}
+              getAggregateStats={getAggregateStats}
+              syncStatus={syncStatus}
+              lastSync={syncLastSync}
+              syncTaskCount={syncTaskCount}
+            />
+            <button
+              className="health-toggle-btn"
+              onClick={() => setShowHealth(true)}
+              title="System Health Dashboard"
+            >
+              <Activity size={16} />
+              Health
+            </button>
+            <button className="reset-btn" onClick={resetPositions} title="Reset node positions to defaults">
+              ↺ Reset Layout
+            </button>
+          </div>
         </div>
-        <div className="app-header-actions">
-          <SearchBar
-            nodes={nodes}
-            getNodeTasks={getNodeTasks}
-            onNodeSelect={onNodeSelect}
-            onFocusNode={onFocusNode}
-          />
-          <SyncIndicator
-            status={syncStatus}
-            lastSync={syncLastSync}
-            taskCount={syncTaskCount}
-            error={syncError}
-            onRefresh={syncRefresh}
-          />
-          <button
-            className="health-toggle-btn"
-            onClick={() => setShowHealth(true)}
-            title="System Health Dashboard"
-          >
-            <Activity size={16} />
-            Health
-          </button>
-          <button className="reset-btn" onClick={resetPositions} title="Reset node positions to defaults">
-            ↺ Reset Layout
-          </button>
-        </div>
-      </div>
+      )}
       <div style={{ width: '100vw', height: '100vh' }}>
         <ReactFlow
           nodes={nodes}
