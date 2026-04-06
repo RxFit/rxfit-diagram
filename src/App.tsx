@@ -21,6 +21,7 @@ import PdfExportButton from './PdfExportButton';
 import { usePersistedPositions } from './hooks/usePersistedPositions';
 import { useTaskState } from './hooks/useTaskState';
 import { useGoogleSheetTasks } from './hooks/useGoogleSheetTasks';
+import { useOrchestratorHealth } from './hooks/useOrchestratorHealth';
 import { initialNodes } from './data/nodes';
 import { initialEdges } from './data/edges';
 import { variantColors } from './types';
@@ -62,6 +63,7 @@ export default function App() {
 
   // Health dashboard state
   const [showHealth, setShowHealth] = useState(false);
+  const { healthData } = useOrchestratorHealth();
 
   // ReactFlow instance for programmatic viewport control
   const rfInstance = useRef<ReactFlowInstance<Node<RxNodeData>, Edge> | null>(null);
@@ -117,6 +119,13 @@ export default function App() {
   // Cross-app postMessage bridge (for Concierge iframe communication)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      // Security Validation: Origin checking to prevent cross-site scripting
+      const allowedOrigins = ['http://localhost:3000', 'https://concierge.rxfit.ai'];
+      if (import.meta.env.MODE === 'production' && !allowedOrigins.includes(event.origin)) {
+        console.warn(`[ops.rxfit.ai] Blocked message from untrusted origin: ${event.origin}`);
+        return;
+      }
+
       if (!event.data || typeof event.data !== 'object') return;
       const { type, nodeId, query } = event.data;
       if (type === 'selectNode' && nodeId) {
@@ -217,6 +226,7 @@ export default function App() {
         nodes={initialNodes}
         getNodeTasks={getNodeTasks}
         getAggregateStats={getAggregateStats}
+        healthData={healthData}
         isOpen={showHealth}
         onClose={() => setShowHealth(false)}
       />
